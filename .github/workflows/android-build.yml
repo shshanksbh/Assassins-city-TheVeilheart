@@ -45,7 +45,8 @@ jobs:
 
           mkdir -p /tmp/godot
 
-          unzip -q /tmp/godot.zip \
+          unzip -q \
+            /tmp/godot.zip \
             -d /tmp/godot
 
           chmod +x \
@@ -65,7 +66,8 @@ jobs:
 
           mkdir -p /tmp/templates
 
-          unzip -q /tmp/templates.tpz \
+          unzip -q \
+            /tmp/templates.tpz \
             -d /tmp/templates
 
           cp -a \
@@ -117,6 +119,7 @@ jobs:
           fi
 
           echo "Android export configuration:"
+
           grep -n \
             -B2 \
             -A3 \
@@ -195,7 +198,7 @@ jobs:
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" \
             >> "$GITHUB_ENV"
 
-           - name: Export Assassin City APK
+      - name: Export Assassin City APK
         run: |
           mkdir -p "$GITHUB_WORKSPACE/build"
 
