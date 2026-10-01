@@ -195,4 +195,30 @@ jobs:
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" \
             >> "$GITHUB_ENV"
 
-      - name: Export
+            - name: Export Assassin City APK
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/build"
+
+          /tmp/godot/Godot_v4.7.2-stable_linux.x86_64 \
+            --headless \
+            --path "$PROJECT_DIR" \
+            --export-debug "$ANDROID_PRESET" \
+            "$GITHUB_WORKSPACE/build/AssassinCity.apk"
+
+      - name: Verify APK
+        run: |
+          test -s "$GITHUB_WORKSPACE/build/AssassinCity.apk"
+
+          echo "APK created successfully:"
+          ls -lh "$GITHUB_WORKSPACE/build/AssassinCity.apk"
+
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" \
+            verify \
+            --verbose \
+            "$GITHUB_WORKSPACE/build/AssassinCity.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AssassinCity-Android-debug
+          path: build/AssassinCity.apk
