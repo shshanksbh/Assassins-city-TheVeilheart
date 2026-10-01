@@ -2,7 +2,8 @@ name: Build Assassin City Android
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -27,6 +28,7 @@ jobs:
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
+
           sdkmanager \
             "platform-tools" \
             "platforms;android-35" \
@@ -42,50 +44,82 @@ jobs:
             -O /tmp/godot.zip
 
           mkdir -p /tmp/godot
-          unzip -q /tmp/godot.zip -d /tmp/godot
-          chmod +x /tmp/godot/Godot_v4.7.2-stable_linux.x86_64
 
-          /tmp/godot/Godot_v4.7.2-stable_linux.x86_64 --version
+          unzip -q /tmp/godot.zip \
+            -d /tmp/godot
+
+          chmod +x \
+            /tmp/godot/Godot_v4.7.2-stable_linux.x86_64
+
+          /tmp/godot/Godot_v4.7.2-stable_linux.x86_64 \
+            --version
 
       - name: Install Godot Android export templates
         run: |
-          mkdir -p "$HOME/.local/share/godot/export_templates/4.7.2.stable"
+          mkdir -p \
+            "$HOME/.local/share/godot/export_templates/4.7.2.stable"
 
           wget -q --show-progress \
             "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz" \
             -O /tmp/templates.tpz
 
           mkdir -p /tmp/templates
-          unzip -q /tmp/templates.tpz -d /tmp/templates
 
-          cp -a /tmp/templates/templates/. \
+          unzip -q /tmp/templates.tpz \
+            -d /tmp/templates
+
+          cp -a \
+            /tmp/templates/templates/. \
+            "$HOME/.local/share/godot/export_templates/4.7.2.stable/"
+
+          echo "Installed Godot export templates:"
+          ls -lh \
             "$HOME/.local/share/godot/export_templates/4.7.2.stable/"
 
       - name: Extract Assassin City
         run: |
           mkdir -p /tmp/assassin-city
-          unzip -q AssassinCity_TheVeilheart_CI_READY.zip \
+
+          unzip -q \
+            AssassinCity_TheVeilheart_CI_READY.zip \
             -d /tmp/assassin-city
 
-          PROJECT_FILE=$(find /tmp/assassin-city \
-            -name project.godot -type f | head -1)
+          PROJECT_FILE=$(find \
+            /tmp/assassin-city \
+            -name project.godot \
+            -type f \
+            | head -1)
 
           if [ -z "$PROJECT_FILE" ]; then
             echo "ERROR: project.godot was not found."
-            find /tmp/assassin-city -maxdepth 4 -type f
+
+            find \
+              /tmp/assassin-city \
+              -maxdepth 4 \
+              -type f
+
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$PROJECT_FILE")
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-          echo "Godot project: $PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" \
+            >> "$GITHUB_ENV"
+
+          echo "Godot project:"
+          echo "$PROJECT_DIR"
 
       - name: Check Android export preset
         run: |
-          test -f "$PROJECT_DIR/export_presets.cfg"
+          if [ ! -f "$PROJECT_DIR/export_presets.cfg" ]; then
+            echo "ERROR: export_presets.cfg was not found."
+            exit 1
+          fi
 
-          grep -n -B2 -A2 \
+          echo "Android export configuration:"
+          grep -n \
+            -B2 \
+            -A3 \
             'platform="Android"' \
             "$PROJECT_DIR/export_presets.cfg" || true
 
@@ -100,44 +134,48 @@ jobs:
       - name: Find Android preset
         run: |
           PRESET=$(python3 - "$PROJECT_DIR/export_presets.cfg" <<'PY'
-import sys
+          import sys
 
-lines = open(
-    sys.argv[1],
-    encoding="utf-8"
-).read().splitlines()
+          lines = open(
+              sys.argv[1],
+              encoding="utf-8"
+          ).read().splitlines()
 
-name = None
+          name = None
 
-for line in lines:
-    line = line.strip()
+          for line in lines:
+              line = line.strip()
 
-    if line.startswith("[preset."):
-        name = None
+              if line.startswith("[preset."):
+                  name = None
 
-    elif line.startswith("name="):
-        name = line.split('"', 2)[1]
+              elif line.startswith("name="):
+                  name = line.split('"', 2)[1]
 
-    elif line == 'platform="Android"' and name:
-        print(name)
-        break
-PY
-)
+              elif line == 'platform="Android"' and name:
+                  print(name)
+                  break
+          PY
+          )
 
           if [ -z "$PRESET" ]; then
             echo "ERROR: No Android export preset found."
             exit 1
           fi
 
-          echo "ANDROID_PRESET=$PRESET" >> "$GITHUB_ENV"
-          echo "Using preset: $PRESET"
+          echo "ANDROID_PRESET=$PRESET" \
+            >> "$GITHUB_ENV"
+
+          echo "Using Android preset:"
+          echo "$PRESET"
 
       - name: Prepare debug keystore
         run: |
           mkdir -p "$HOME/.android"
 
           if [ ! -f "$HOME/.android/debug.keystore" ]; then
-            keytool -genkeypair -v \
+            keytool -genkeypair \
+              -v \
               -keystore "$HOME/.android/debug.keystore" \
               -storepass android \
               -alias androiddebugkey \
@@ -148,33 +186,13 @@ PY
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
-          echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey" >> "$GITHUB_ENV"
-          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$HOME/.android/debug.keystore" \
+            >> "$GITHUB_ENV"
 
-      - name: Export Assassin City APK
-        run: |
-          mkdir -p "$GITHUB_WORKSPACE/build"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey" \
+            >> "$GITHUB_ENV"
 
-          /tmp/godot/Godot_v4.7.2-stable_linux.x86_64 \
-            --headless \
-            --path "$PROJECT_DIR" \
-            --export-debug "$ANDROID_PRESET" \
-            "$GITHUB_WORKSPACE/build/AssassinCity.apk"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" \
+            >> "$GITHUB_ENV"
 
-      - name: Verify APK
-        run: |
-          test -s "$GITHUB_WORKSPACE/build/AssassinCity.apk"
-
-          ls -lh "$GITHUB_WORKSPACE/build/AssassinCity.apk"
-
-          "$ANDROID_HOME/build-tools/35.0.1/apksigner" \
-            verify \
-            --verbose \
-            "$GITHUB_WORKSPACE/build/AssassinCity.apk"
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: AssassinCity-Android-debug
-          path: build/AssassinCity.apk
+      - name: Export
